@@ -35,24 +35,35 @@ class Trajectory():
         # LEFT SIDE
         # pelvis, stomach, abs, lowerChest, upperChest, leftInnerShoulder, leftShoulder, leftElbow, leftWrist
         self.q_left = np.radians(np.zeros((17, 1)))
-        self.chain_left = KinematicChain(node, 'Pelvis', 'LeftHand', self.jointnames("arm_left"))
+        self.chain_left = KinematicChain(node, 'Pelvis', 'LeftHand_f1', self.jointnames("arm_left"))
         self.R_left = Reye()
 
         # RIGHT SIDE
         # pelvis, stomach, abs, lowerChest, upperChest, rightInnerShoulder, rightShoulder, rightElbow, rightWrist
         self.q_right = np.radians(np.zeros((17, 1)))
-        self.chain_right = KinematicChain(node, 'Pelvis', 'RightHand', self.jointnames("arm_right"))
+        self.chain_right = KinematicChain(node, 'Pelvis', 'RightHand_f1', self.jointnames("arm_right"))
         self.R_right = Reye()
 
         # TASK SPACE
         self.pleft  = np.array([0.3, 0.5, 0.15]).reshape((3,1))
         self.error_left = np.zeros((6,1))
+        self.error_left = np.zeros((6,1))
         self.pright = np.array([-0.3, 0.5, 0.15]).reshape((3,1))
+        self.error_right = np.zeros((6,1))
         self.error_right = np.zeros((6,1))
         
         self.lam = 20
 
 
+    # Declare the joint names
+    def jointnames(self, side):
+        # Return a list of joint names based the kinematic chain requested (from URDF)
+        if (side.equals("arm_left")):
+            return ['stomach_rotx', 'stomach_roty', 'abs_rotx', 'abs_roty', 'lowerChest_rotx', 'lowerChest_roty', 'upperChest_rotx', 'upperChest_roty', 'upperChest_rotz', 'leftInnerShoulder_rotx', 'leftShoulder_rotx', 'leftShoulder_roty', 'leftShoulder_rotz', 'leftElbow_roty', 'leftElbow_rotz', 'leftWrist_rotx', 'leftWrist_rotz']
+        elif (side.equals("arm_right")):
+            return ['stomach_rotx', 'stomach_roty', 'abs_rotx', 'abs_roty', 'lowerChest_rotx', 'lowerChest_roty', 'upperChest_rotx', 'upperChest_roty', 'upperChest_rotz', 'rightInnerShoulder_rotx', 'rightShoulder_rotx', 'rightShoulder_roty', 'rightShoulder_rotz', 'rightElbow_roty', 'rightElbow_rotz', 'rightWrist_rotx', 'rightWrist_rotz']
+        else:
+            return ValueError("Please enter valid side.")
     # Declare the joint names
     def jointnames(self, side):
         # Return a list of joint names based the kinematic chain requested (from URDF)
