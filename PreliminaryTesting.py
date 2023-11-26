@@ -64,18 +64,10 @@ class Trajectory():
             return ['stomach_rotx', 'stomach_roty', 'abs_rotx', 'abs_roty', 'lowerChest_rotx', 'lowerChest_roty', 'upperChest_rotx', 'upperChest_roty', 'upperChest_rotz', 'rightInnerShoulder_rotx', 'rightShoulder_rotx', 'rightShoulder_roty', 'rightShoulder_rotz', 'rightElbow_roty', 'rightElbow_rotz', 'rightWrist_rotx', 'rightWrist_rotz']
         else:
             return ValueError("Please enter valid side.")
-    # Declare the joint names
-    def jointnames(self, side):
-        # Return a list of joint names based the kinematic chain requested (from URDF)
-        if (side.equals("arm_left")):
-            return ['stomach_rotx', 'stomach_roty', 'abs_rotx', 'abs_roty', 'lowerChest_rotx', 'lowerChest_roty', 'upperChest_rotx', 'upperChest_roty', 'upperChest_rotz', 'leftInnerShoulder_rotx', 'leftShoulder_rotx', 'leftShoulder_roty', 'leftShoulder_rotz', 'leftElbow_roty', 'leftElbow_rotz', 'leftWrist_rotx', 'leftWrist_rotz']
-        elif (side.equals("arm_right")):
-            return ['stomach_rotx', 'stomach_roty', 'abs_rotx', 'abs_roty', 'lowerChest_rotx', 'lowerChest_roty', 'upperChest_rotx', 'upperChest_roty', 'upperChest_rotz', 'rightInnerShoulder_rotx', 'rightShoulder_rotx', 'rightShoulder_roty', 'rightShoulder_rotz', 'rightElbow_roty', 'rightElbow_rotz', 'rightWrist_rotx', 'rightWrist_rotz']
-        else:
-            return ValueError("Please enter valid side.")
 
     # Evaluate at the given time.  This was last called (dt) ago.
     def evaluate(self, t, dt):
+        # Hands come together from both sides to join
         if t < 3:
             #going from the initial position to the first target
             (g0, g0dot) = goto(t, 3.0, 0.0, 1.0) 
@@ -88,6 +80,11 @@ class Trajectory():
 
             Rd = Reye()
             wd = np.zeros((3,1))
+
+        # Go outwards
+        # elif:
+        #     pass
+        # Go back in
         else:
             #Now we choose a path. That path will be a parabolic shape between the two ends.
             #The position and velocities the tip goes through will be a function of the path g.
