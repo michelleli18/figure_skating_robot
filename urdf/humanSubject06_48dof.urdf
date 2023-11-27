@@ -885,7 +885,7 @@
         <limit effort="30" velocity="1.0" lower="-0.785398" upper="0.0872665" />
         <axis xyz="1 0 0" />
     </joint>
-	<joint name="rightInnerShoulder_rotx" type="revolute">
+	<joint name="rightShoulder_rotx" type="revolute">
         <origin xyz="0    -0.15771           0" rpy="0 0 0"/>
         <parent link="RightShoulder"/>
         <child link="RightUpperArm_f1"/>
@@ -942,7 +942,7 @@
         <axis xyz="0 0 1" />
     </joint>
 	<!--Chain from (12) to (15)-->
-	<joint name="leftShoulder_rotx" type="revolute">
+	<joint name="leftInnerShoulder_rotx" type="revolute">
         <origin xyz="0    0.029713    0.065446" rpy="0 0 0"/>
         <parent link="T8"/>
         <child link="LeftShoulder"/>

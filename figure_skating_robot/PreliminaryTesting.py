@@ -35,21 +35,21 @@ class Trajectory():
         # LEFT SIDE
         # pelvis, stomach, abs, lowerChest, upperChest, leftInnerShoulder, leftShoulder, leftElbow, leftWrist
         self.q_left = np.radians(np.zeros((17, 1)))
+        self.q_left[12] = np.radians(-1.550)  # leftShoulder_rotz = -1.550
         self.chain_left = KinematicChain(node, 'Pelvis', 'LeftHand_f1', self.jointnames("arm_left"))
         self.R_left = Reye()
 
         # RIGHT SIDE
         # pelvis, stomach, abs, lowerChest, upperChest, rightInnerShoulder, rightShoulder, rightElbow, rightWrist
         self.q_right = np.radians(np.zeros((17, 1)))
+        self.q_right[12] = np.radians(-0.785)  # rightShoulder_rotz = -0.785
         self.chain_right = KinematicChain(node, 'Pelvis', 'RightHand_f1', self.jointnames("arm_right"))
         self.R_right = Reye()
 
         # TASK SPACE
-        self.pleft  = np.array([0.3, 0.5, 0.15]).reshape((3,1))
+        self.pleft  = np.array([0.53274, 0.19861, 0.43292]).reshape((3,1))
         self.error_left = np.zeros((6,1))
-        self.error_left = np.zeros((6,1))
-        self.pright = np.array([-0.3, 0.5, 0.15]).reshape((3,1))
-        self.error_right = np.zeros((6,1))
+        self.pright = np.array([-0.37595, -0.56397, 0.43302]).reshape((3,1))
         self.error_right = np.zeros((6,1))
         
         self.lam = 20
@@ -68,15 +68,9 @@ class Trajectory():
     # Evaluate at the given time.  This was last called (dt) ago.
     def evaluate(self, t, dt):
         # Hands come together from both sides to join
-        if t < 3:
-            #going from the initial position to the first target
-            (g0, g0dot) = goto(t, 3.0, 0.0, 1.0) 
-            #p0 = 0, pf = 1. This 0 and 1 is with respect to the predermined path. 
-            #0 being the beginning of this path. 1 being the right of the path. 
-            #And -1 being the left end of the path
-            pd = self.p0 + (self.pright - self.p0) * g0
-            vd =           (self.pright - self.p0) * g0dot
-
+        if t < pi:
+            pd = self.r*cos(self.chain_left[12])
+            vd = -self.r*sin(self.chain_left[12])
 
             Rd = Reye()
             wd = np.zeros((3,1))
@@ -86,6 +80,7 @@ class Trajectory():
         #     pass
         # Go back in
         else:
+            return None
             #Now we choose a path. That path will be a parabolic shape between the two ends.
             #The position and velocities the tip goes through will be a function of the path g.
             #The way in which the path g is traversed, which is independent of the actual pos and vel
@@ -112,7 +107,7 @@ class Trajectory():
         qlast = self.q
         error = self.error
 
-        (plast, R, Jv, Jw) = self.chain.fkin(qlast)
+        (plast, R, Jv, Jw) = self.chain_left.fkin(qlast)
 
         J = np.vstack((Jv, Jw))
         v = np.vstack((vd, wd))
