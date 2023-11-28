@@ -51,6 +51,8 @@ class GeneratorNode(Node):
         # Set up a trajectory.
         self.trajectory = Trajectory(self)
         self.jointnames = self.trajectory.jointnames()
+        self.trajectory.joints_by_chain("pelvis_to_right_arm")
+
 
         # Add a publisher to send the joint commands.
         self.pub = self.create_publisher(JointState, '/joint_states', 10)
