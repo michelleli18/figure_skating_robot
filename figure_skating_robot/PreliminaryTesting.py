@@ -116,10 +116,11 @@ class Trajectory():
 
     # Evaluate at the given time.  This was last called (dt) ago.
     def evaluate(self, t, dt):
-        # return np.zeros((48, 1)).flatten().tolist(), np.zeros((48, 1)).flatten().tolist()
+        if (t < self.WIND_UP_TIME):
+            return np.zeros((48, 1)).flatten().tolist(), np.zeros((48, 1)).flatten().tolist()
         
         # Hands come together from both sides to join
-        if t < self.WIND_UP_TIME:
+        if t > self.WIND_UP_TIME:
         #     pd = 
         #     vd = 
 
@@ -136,36 +137,55 @@ class Trajectory():
             sp = - cos(w * (t - self.WIND_UP_TIME))
             spdot = w * sin(w * (t - self.WIND_UP_TIME))
 
-            # Use the path variables to compute the trajectory.
-            pd_left = (0.5*(self.pout_left_arm+self.pin_left_arm) + 0.5*(self.pout_left_arm-self.pin_left_arm) * sp).reshape((3, 1))
-            vd_left = (0, (0.5*(self.pout_left_arm[1]-self.pin_left_arm[1]) * spdot), 0).reshape((3, 1))
-
-            pd_right = (0.5*(self.pout_right_arm+self.pin_right_arm) + 0.5*(self.pout_right_arm-self.pin_right_arm) * sp).reshape((3, 1))
-            vd_right = (0.5*(self.pout_right_arm-self.pin_right_arm) * spdot).reshape((3, 1))
+            #FINDING PATH TRAJECTORY FOR LEFT ARM
+            pd_left = np.array([0.5*(self.pout_left_arm[0][0] + self.pin_left_arm[0][0]) + 0.5*(self.pout_left_arm[0][0] - self.pin_left_arm[0][0]) * sp, 
+                                self.pin_left_arm[1][0], 
+                                (self.pin_left_arm[2][0] - self.pout_left_arm[2][0])*(t - self.WIND_UP_TIME) + self.pout_left_arm[2][0]]).reshape((3, 1))
             
+            vd_left = np.array([0.5*(self.pout_left_arm[0][0] - self.pin_left_arm[0][0]) * spdot, 
+                                0, 
+                                self.pin_left_arm[2][0] - self.pout_left_arm[2][0]]).reshape((3, 1))
             Rd_left = Reye()
             wd_left = np.zeros((3, 1))
+
+            #FINDING PATH  TRAJECTORY FOR RIGHT ARM
+            pd_right = np.array([0.5*(self.pout_right_arm[0][0] + self.pin_right_arm[0][0]) + 0.5*(self.pout_right_arm[0][0] - self.pin_right_arm[0][0]) * sp, 
+                                 self.pin_right_arm[1][0], 
+                                 (self.pin_right_arm[2][0] - self.pout_right_arm[2][0])*(t - self.WIND_UP_TIME) + self.pout_right_arm[2][0]]).reshape((3, 1))
+            
+            vd_right = np.array([(0.5*(self.pout_right_arm[0][0] - self.pin_right_arm[0][0]) * spdot), 
+                                 0, 
+                                 self.pin_right_arm[2][0] - self.pout_right_arm[2][0]]).reshape((3, 1))
             Rd_right = Reye()
             wd_right = np.zeros((3, 1))
         
         qlast = self.q
         error = self.error_arm
 
+        #FKIN ON KINEMATIC CHAIN FPR LEFT ARM
         (ptip_left, R_left, Jv_left, Jw_left) = self.chain_left.fkin(qlast[self.joint_indicies_by_chain("pelvis_to_left_arm")])
+
+        #FKIN ON KINEMATIC CHAIN FPR RIGHT ARM
         (ptip_right, R_right, Jv_right, Jw_right) = self.chain_right.fkin(qlast[self.joint_indicies_by_chain("pelvis_to_right_arm")])
 
-
+        #CREATIG JACOBIAN(6 x 48) AND VELOCITY(6 x 1) FOR LEFT ARM
         J_left = self.fill_jac(np.vstack((Jv_left, Jw_left)), "pelvis_to_left_arm")
         v_left = np.vstack((vd_left, wd_left))
+
+        #CREATIG JACOBIAN(6 x 48) AND VELOCITY(6 x 1) FOR RIGHT ARM
         J_right = self.fill_jac(np.vstack((Jv_right, Jw_right)), "pelvis_to_right_arm")
         v_right = np.vstack((vd_right, wd_right))
+
+        #VERTICALLY STACKING JACOBIANS AND VELOCITY TO CREATE SINGLE JACOBIAN(12 x 48) AND VELOCITY(12 x 1)
         J = np.vstack((J_left, J_right))
         v = np.vstack((v_left, v_right))
 
-        Jinv = np.transpose(J)@np.linalg.inv(J@np.transpose(J))
+        #EVALUATE AS IF A SINGLE CHAIN LIKE DONE PREVIOUSLY IN CLASS
+        Jinv = np.transpose(J) @ np.linalg.inv(J @ np.transpose(J))
         qdot = Jinv @ (v + self.lam*error)
         q = qlast + dt*qdot
 
+        #ERROR CALCULATED USING LEFT AND RIGHT VALUES THEN COMBINED
         error_left = np.vstack((ep(pd_left, ptip_left), eR(Rd_left, R_left)))
         error_right = np.vstack((ep(pd_right, ptip_right), eR(Rd_right, R_right)))
 
