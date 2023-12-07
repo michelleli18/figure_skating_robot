@@ -36,17 +36,19 @@ class Trajectory():
 
         # LEFT SIDE
         # ARM: pelvis, stomach, abs, lowerChest, upperChest, leftInnerShoulder, leftShoulder, leftElbow, leftWrist
-        self.q_left_arm = np.radians(np.zeros((16, 1)))
-        self.q0_left_arm = np.radians(np.zeros((16, 1)))
-        self.q_left_arm[12] = np.radians(-1.804)  # leftShoulder_rotz = -1.804
+        # self.q_left_arm = np.radians(np.zeros((16, 1)))
+        # self.q0_left_arm = np.radians(np.zeros((16, 1)))
+        # self.q[34] = -1.550
+        self.q[34] = -1.804  # leftShoulder_rotz = -1.804
         self.chain_left = KinematicChain(node, 'Pelvis', 'LeftHand_f1', self.joints_by_chain("pelvis_to_left_arm"))
         self.R_left = Reye()
 
         # RIGHT SIDE
         # pelvis, stomach, abs, lowerChest, upperChest, rightInnerShoulder, rightShoulder, rightElbow, rightWrist
-        self.q_right_arm = np.radians(np.zeros((16, 1)))
-        self.q0_right_arm = np.radians(np.zeros((16, 1)))
-        self.q_right_arm[12] = np.radians(1.826)  # rightShoulder_rotz = 1.826
+        # self.q_right_arm = np.radians(np.zeros((16, 1)))
+        # self.q0_right_arm = np.radians(np.zeros((16, 1)))
+        # self.q[17] = -0.785
+        self.q[17] = 1.826  # rightShoulder_rotz = 1.826
         self.chain_right = KinematicChain(node, 'Pelvis', 'RightHand_f1', self.joints_by_chain("pelvis_to_right_arm"))
         self.R_right = Reye()
 
@@ -64,7 +66,7 @@ class Trajectory():
         # TASK 2
         # Initial
         self.pin_left_arm = np.array([0.51843, 0.064053, 0.43283]).reshape((3, 1))
-        self.pin_right_arm = np.array([0.51569, -0.953098, 0.43278]).reshape((3, 1))
+        self.pin_right_arm = np.array([0.51569, -0.0953098, 0.43278]).reshape((3, 1))
         # Final
         self.pout_left_arm = np.array([0.60774, 0.064053, 0.11712]).reshape((3, 1))
         self.pout_right_arm = np.array([0.60538, -0.053098, 0.1185]).reshape((3, 1))
@@ -117,10 +119,10 @@ class Trajectory():
     # Evaluate at the given time.  This was last called (dt) ago.
     def evaluate(self, t, dt):
         if (t < self.WIND_UP_TIME):
-            return np.zeros((48, 1)).flatten().tolist(), np.zeros((48, 1)).flatten().tolist()
+            return self.q.flatten().tolist(), np.zeros((48, 1)).flatten().tolist()
         
         # Hands come together from both sides to join
-        if t > self.WIND_UP_TIME:
+        # if t > self.WIND_UP_TIME:
         #     pd = 
         #     vd = 
 
@@ -129,8 +131,8 @@ class Trajectory():
             # pass    
 
         # Go outwards
-        # elif self.WIND_UP_TIME < t < self.WIND_UP_TIME + self.OUTWARD_DURATION:
-            w = -pi # Frequency
+        elif self.WIND_UP_TIME < t < self.WIND_UP_TIME + self.OUTWARD_DURATION:
+            w = -pi/3 # Frequency
             t1 = (t-self.WIND_UP_TIME) % self.OUTWARD_DURATION
 
             # Move arm inwards
@@ -138,26 +140,18 @@ class Trajectory():
             spdot = w * sin(w * (t - self.WIND_UP_TIME))
 
             #FINDING PATH TRAJECTORY FOR LEFT ARM
-            pd_left = np.array([0.5*(self.pout_left_arm[0][0] + self.pin_left_arm[0][0]) + 0.5*(self.pout_left_arm[0][0] - self.pin_left_arm[0][0]) * sp, 
-                                self.pin_left_arm[1][0], 
-                                (self.pin_left_arm[2][0] - self.pout_left_arm[2][0])*(t - self.WIND_UP_TIME) + self.pout_left_arm[2][0]]).reshape((3, 1))
-            
-            vd_left = np.array([0.5*(self.pout_left_arm[0][0] - self.pin_left_arm[0][0]) * spdot, 
-                                0, 
-                                self.pin_left_arm[2][0] - self.pout_left_arm[2][0]]).reshape((3, 1))
+            pd_left = (0.5*(self.pout_left_arm+self.pin_left_arm) + 0.5*(self.pout_left_arm-self.pin_left_arm) * sp)
+            vd_left = (0.5*(self.pout_left_arm-self.pin_left_arm) * spdot)
             Rd_left = Reye()
             wd_left = np.zeros((3, 1))
 
             #FINDING PATH  TRAJECTORY FOR RIGHT ARM
-            pd_right = np.array([0.5*(self.pout_right_arm[0][0] + self.pin_right_arm[0][0]) + 0.5*(self.pout_right_arm[0][0] - self.pin_right_arm[0][0]) * sp, 
-                                 self.pin_right_arm[1][0], 
-                                 (self.pin_right_arm[2][0] - self.pout_right_arm[2][0])*(t - self.WIND_UP_TIME) + self.pout_right_arm[2][0]]).reshape((3, 1))
-            
-            vd_right = np.array([(0.5*(self.pout_right_arm[0][0] - self.pin_right_arm[0][0]) * spdot), 
-                                 0, 
-                                 self.pin_right_arm[2][0] - self.pout_right_arm[2][0]]).reshape((3, 1))
+            pd_right = (0.5*(self.pout_right_arm+self.pin_right_arm) + 0.5*(self.pout_right_arm-self.pin_right_arm) * sp)
+            vd_right = (0.5*(self.pout_right_arm-self.pin_right_arm) * spdot)
             Rd_right = Reye()
             wd_right = np.zeros((3, 1))
+        else: 
+            pass
         
         qlast = self.q
         error = self.error_arm
@@ -194,6 +188,8 @@ class Trajectory():
 
         # Return the position and velocity as python lists.
         return (q.flatten().tolist(), qdot.flatten().tolist())
+
+
 
 #
 #  Main Code
