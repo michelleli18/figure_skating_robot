@@ -28,6 +28,7 @@ from figure_skating_robot.KinematicChain     import KinematicChain
 class Trajectory():
     WIND_UP_TIME = 3
     OUTWARD_DURATION = 3
+    UP_DURATION = 1
 
     # Initialization.
     def __init__(self, node):
@@ -40,8 +41,6 @@ class Trajectory():
         # self.q0_left_arm = np.radians(np.zeros((16, 1)))
         # self.q[34] = -1.550
         self.q[34] = -1.804  # leftShoulder_rotz = -1.804
-        self.phase1_qstart_left = self.q[34][0]
-        self.phase2_qstart_left = self.phase1_qstart_left
         self.chain_left = KinematicChain(node, 'Pelvis', 'LeftHand_f1', self.joints_by_chain("pelvis_to_left_arm"))
         self.R_left = Reye()
 
@@ -50,8 +49,7 @@ class Trajectory():
         # self.q_right_arm = np.radians(np.zeros((16, 1)))
         # self.q0_right_arm = np.radians(np.zeros((16, 1)))
         self.q[17] = -0.785
-        self.phase1_qstart_right = self.q[17][0]
-        self.phase2_qstart_right = 1.826  # rightShoulder_rotz = 1.826
+        # self.q[17] = 1.826  # rightShoulder_rotz = 1.826
         self.chain_right = KinematicChain(node, 'Pelvis', 'RightHand_f1', self.joints_by_chain("pelvis_to_right_arm"))
         self.R_right = Reye()
 
@@ -63,8 +61,11 @@ class Trajectory():
 
         # # TASK 1
         # # Initial
-        # self.pleft_arm  = np.array([0.53274, 0.19861, 0.43292]).reshape((3,1))
-        # self.pright_arm = np.array([-0.37595, -0.56397, 0.43302]).reshape((3,1))
+        # Initial
+        self.pstart_left_arm = np.array([0.91843, 0.074053, 0.63283]).reshape((3, 1)) # CHANGE THIS TO STARTING
+        self.pstart_right_arm = np.array([0.31569, -0.0353098, 0.63278]).reshape((3, 1)) # CHANGE THIS TO STARTING
+        # Final
+        # START OF THE NEXT TASK
 
         # TASK 2
         # Initial
@@ -73,6 +74,13 @@ class Trajectory():
         # Final
         self.pout_left_arm = np.array([0.60774, 0.064053, 0.11712]).reshape((3, 1))
         self.pout_right_arm = np.array([0.60538, -0.053098, 0.1185]).reshape((3, 1))
+
+        # TASK 3
+        # Initial
+        # Previous Final Positions
+        # Final
+        self.pinward_left_arm = np.array([0.61843, 0.064053, 0.23283]).reshape((3, 1)) # CHANGE THESE
+        self.pinward_right_arm = np.array([0.61569, -0.0953098, 0.23278]).reshape((3, 1)) # CHANGE THESE
         
         self.lam = 20
 
@@ -123,25 +131,12 @@ class Trajectory():
     def evaluate(self, t, dt):
         # Hands come together from both sides to join
         if (t < self.WIND_UP_TIME):
-            theta = self.phase2_qstart_right - self.phase1_qstart_right
-            r = -0.029713-(-0.71983)  ## y pos of right hand - y pos for right shoulder
 
-            # Move arm inwards
-            g = theta/(3*self.WIND_UP_TIME)*t
-            gdot = theta/(3*self.WIND_UP_TIME)
+            # CHANGE TO self.q[17] = -0.785
+            self.q[17] = -.785+(1.826+.785)/3*t # HERE
 
-            #FINDING PATH TRAJECTORY FOR LEFT ARM
-            pd_left = self.pin_left_arm
-            vd_left = np.zeros((3, 1))
-            Rd_left = Reye()
-            wd_left = np.zeros((3, 1))
-
-            #FINDING PATH TRAJECTORY FOR RIGHT ARM
-            pd_right = np.array([r*np.cos(g-pi/2+self.phase1_qstart_right), r*np.sin(g-pi/2+self.phase1_qstart_right)-0.029713, self.pin_left_arm[2][0]]).reshape((3, 1))
-            vd_right = np.array([-r*gdot*np.sin(g-pi/2+self.phase1_qstart_right), r*gdot*np.cos(g-pi/2+self.phase1_qstart_right), 0]).reshape((3, 1))
-            Rd_right = Reye()
-            wd_right = np.zeros((3, 1))
-
+            return self.q.flatten().tolist(), np.zeros((48, 1)).flatten().tolist() # HERE
+            
         # Go outwards
         elif self.WIND_UP_TIME < t < self.WIND_UP_TIME + self.OUTWARD_DURATION:
             w = -pi/3 # Frequency
@@ -161,8 +156,28 @@ class Trajectory():
             vd_right = (0.5*(self.pout_right_arm-self.pin_right_arm) * spdot)
             Rd_right = Reye()
             wd_right = np.zeros((3, 1))
+        elif self.OUTWARD_DURATION < t < self.WIND_UP_TIME + self.OUTWARD_DURATION + self.UP_DURATION: 
+            w = -pi # Frequency
+    
+            # Move arm inwards
+            sp = - cos(w * (t - self.OUTWARD_DURATION))
+            spdot = w * sin(w * (t - self.OUTWARD_DURATION))
+
+            #FINDING PATH TRAJECTORY FOR LEFT ARM
+            pd_left = (0.5*(self.pin_left_arm+self.pout_left_arm) + 0.5*(self.pin_left_arm-self.pout_left_arm) * sp)
+            vd_left = (0.5*(self.pin_left_arm-self.pout_left_arm) * spdot)
+            Rd_left = Reye()
+            wd_left = np.zeros((3, 1))
+
+            #FINDING PATH  TRAJECTORY FOR RIGHT ARM
+            pd_right = (0.5*(self.pin_right_arm+self.pout_right_arm) + 0.5*(self.pin_right_arm-self.pout_right_arm) * sp)
+            vd_right = (0.5*(self.pin_right_arm-self.pout_right_arm) * spdot)
+            Rd_right = Reye()
+            wd_right = np.zeros((3, 1))
+
         else: 
-            return self.q.flatten().tolist(), np.zeros((48, 1)).flatten().tolist()
+            # return self.q.flatten().tolist(), np.zeros((48, 1)).flatten().tolist()
+            pass
         
         qlast = self.q
         error = self.error_arm

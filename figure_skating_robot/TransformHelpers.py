@@ -58,6 +58,10 @@ import numpy as np
 
 from urdf_parser_py.urdf import Robot
 
+from geometry_msgs.msg          import Point, Vector3 # HERE
+from geometry_msgs.msg          import Quaternion # HERE
+from geometry_msgs.msg          import Pose, Transform # HERE
+
 
 #
 #   Cross Product
@@ -183,6 +187,22 @@ def quat_from_R(R):
         q = c*np.array([R[1][0]-R[0][1], R[0][2]+R[2][0], R[2][1]+R[1][2], A])
     return q
 
+# HERE
+def Quaternion_from_quat(quat):
+    # Note, ROS quaternions place the w component last, while our
+    # library places the w component first.
+    q = quat.flatten()
+    return Quaternion(x=q[1], y=q[2], z=q[3], w=q[0])
+
+def Quaternion_from_R(R):
+    return Quaternion_from_quat(quat_from_R(R))
+
+def Vector3_from_p(p):
+    return Vector3(x=p[0,0], y=p[1,0], z=p[2,0])
+
+def Transform_from_T(T):
+    return Transform(translation = Vector3_from_p(p_from_T(T)),
+                     rotation    = Quaternion_from_R(R_from_T(T)))
 
 #
 #   URDF <origin> element

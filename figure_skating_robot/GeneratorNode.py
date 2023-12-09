@@ -30,6 +30,10 @@ from asyncio            import Future
 from rclpy.node         import Node
 from sensor_msgs.msg    import JointState
 
+from figure_skating_robot.TransformHelpers     import * # HERE
+from tf2_ros                    import TransformBroadcaster # HERE
+from geometry_msgs.msg          import TransformStamped # HERE
+
 
 #
 #   Trajectory Generator Node Class
@@ -47,6 +51,8 @@ class GeneratorNode(Node):
     def __init__(self, name, rate, Trajectory):
         # Initialize the node, naming it as specified
         super().__init__(name)
+        # Initialize the transform broadcaster
+        self.broadcaster = TransformBroadcaster(self) # HERE
 
         # Set up a trajectory.
         self.trajectory = Trajectory(self)
@@ -98,14 +104,33 @@ class GeneratorNode(Node):
             self.get_logger().info("Stopping: Interrupted")
 
 
+    # HERE
+    # Return the current time (in ROS format).
+    def now(self):
+        return self.start + rclpy.time.Duration(seconds=self.t)
+    
+    # HERE
     # Update - send a new joint command every time step.
     def update(self):
         # To avoid any time jitter enforce a constant time step and
         # integrate to get the current time.
         self.t += self.dt
 
+        # Compute position/orientation of the pelvis (w.r.t. world).
+        ppelvis = pxyz(0,0,0)
+        Rpelvis = Rotz(self.t * 1/50*2**self.t)
+        Tpelvis = T_from_Rp(Rpelvis, ppelvis)
+        
+        # Build up and send the Pelvis w.r.t. World Transform!
+        trans = TransformStamped()
+        trans.header.stamp    = self.now().to_msg()
+        trans.header.frame_id = 'world'
+        trans.child_frame_id  = 'Pelvis'
+        trans.transform       = Transform_from_T(Tpelvis)
+        self.broadcaster.sendTransform(trans)
+
         # Determine the corresponding ROS time (seconds since 1970).
-        now = self.start + rclpy.time.Duration(seconds=self.t)
+        now = self.start + rclpy.time.Duration(seconds=self.t) # I MADE THIS INTO A DEF
 
         # Compute the desired joint positions and velocities for this time.
         desired = self.trajectory.evaluate(self.t, self.dt)
