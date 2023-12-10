@@ -26,6 +26,8 @@
 import rclpy
 import numpy as np
 
+from math import pi, sin, cos, acos, atan2, sqrt, fmod, exp
+
 from asyncio            import Future
 from rclpy.node         import Node
 from sensor_msgs.msg    import JointState
@@ -47,6 +49,9 @@ from geometry_msgs.msg          import TransformStamped # HERE
 #   as arguments.
 #
 class GeneratorNode(Node):
+    WIND_UP_TIME = 3
+    OUTWARD_DURATION = 3
+    UP_DURATION = 3
     # Initialization.
     def __init__(self, name, rate, Trajectory):
         # Initialize the node, naming it as specified
@@ -103,7 +108,6 @@ class GeneratorNode(Node):
         else:
             self.get_logger().info("Stopping: Interrupted")
 
-
     # HERE
     # Return the current time (in ROS format).
     def now(self):
@@ -117,9 +121,16 @@ class GeneratorNode(Node):
         self.t += self.dt
 
         # Compute position/orientation of the pelvis (w.r.t. world).
-        ppelvis = pxyz(0,0,0)
+        if (self.t < self.WIND_UP_TIME):
+            ppelvis = pxyz(0,0,1.00297)
+        elif (self.WIND_UP_TIME < self.t < self.WIND_UP_TIME + self.OUTWARD_DURATION + self.UP_DURATION):
+            w = -pi/3 
+            sp = - cos(w * (self.t - self.WIND_UP_TIME))
+
+            ppelvis = pxyz(0,0,(0.5*(0.4 + 1.00297) + 0.5*(0.4 - 1.00297) * sp))
         Rpelvis = Rotz(self.t * 1/50*2**self.t)
         Tpelvis = T_from_Rp(Rpelvis, ppelvis)
+
         
         # Build up and send the Pelvis w.r.t. World Transform!
         trans = TransformStamped()

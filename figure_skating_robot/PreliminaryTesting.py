@@ -77,11 +77,31 @@ class Trajectory():
         self.Rprim_init = Rmid(self.Rprim_left, self.Rprim_right)
         self.Rsec_init = np.transpose(self.Rprim_left)@self.Rprim_right
 
-        # Final
-        # self.pout_left_arm = np.array([0.60774, 0.064053, 0.11712]).reshape((3, 1))
-        # self.pout_right_arm = np.array([0.60538, -0.053098, 0.1185]).reshape((3, 1))
-        self.pout_left_arm = np.array([[0.447716, -0.437091, 0]]).reshape((3, 1))
-        self.pout_right_arm = np.array([0.4124, -0.110882, 0]).reshape((3, 1))
+        # # Final
+        # Arms directly in front, exactly as originally designed. 
+        self.pout_left_arm = np.array([0.60774, 0.064053, 0.11712]).reshape((3, 1))
+        self.pout_right_arm = np.array([0.60538, -0.053098, 0.1185]).reshape((3, 1))
+
+        # # Arms side and down, although both hands nearly together
+        # self.pout_left_arm = np.array([[0.447716, -0.437091, 0]]).reshape((3, 1))
+        # self.pout_right_arm = np.array([0.4124, -0.110882, 0]).reshape((3, 1))
+
+        # # Arms to the side, one arm shorter than the other
+        # self.pout_left_arm = np.array([[0.265419, -0.667735, 0.311016]]).reshape((3, 1))
+        # self.pout_right_arm = np.array([0.26754, -0.288043, 0.29554]).reshape((3, 1))
+
+        # # Arms in L shape, one to the side, one above head (yoga pose)
+        # self.pout_left_arm = np.array([[0.000539056, -0.708635, 0]]).reshape((3, 1))
+        # self.pout_right_arm = np.array([0.26754, -0.288043, 0.29554]).reshape((3, 1))
+
+        # # Arms to the side, hands together, waist bent
+        # self.pout_left_arm = np.array([[0.000539056, -0.718635, 0]]).reshape((3, 1))
+        # self.pout_right_arm = np.array([0.00074285, -0.639181, 0.188626]).reshape((3, 1))
+
+        # # Physically out of task space
+        # self.pout_left_arm = np.array([[0.000539056, -1.88635, 0]]).reshape((3, 1))
+        # self.pout_right_arm = np.array([0.00074285, -1.79181, 0.188626]).reshape((3, 1))
+
         self.prim_final = (self.pout_left_arm + self.pout_right_arm)/2
         self.Rprim_final = self.Rprim_init
         self.Rsec_final = self.Rsec_init
