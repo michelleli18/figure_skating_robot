@@ -78,8 +78,10 @@ class Trajectory():
         self.Rsec_init = np.transpose(self.Rprim_left)@self.Rprim_right
 
         # Final
-        self.pout_left_arm = np.array([0.60774, 0.064053, 0.11712]).reshape((3, 1))
-        self.pout_right_arm = np.array([0.60538, -0.053098, 0.1185]).reshape((3, 1))
+        # self.pout_left_arm = np.array([0.60774, 0.064053, 0.11712]).reshape((3, 1))
+        # self.pout_right_arm = np.array([0.60538, -0.053098, 0.1185]).reshape((3, 1))
+        self.pout_left_arm = np.array([[0.447716, -0.437091, 0]]).reshape((3, 1))
+        self.pout_right_arm = np.array([0.4124, -0.110882, 0]).reshape((3, 1))
         self.prim_final = (self.pout_left_arm + self.pout_right_arm)/2
         self.Rprim_final = self.Rprim_init
         self.Rsec_final = self.Rsec_init
@@ -179,6 +181,18 @@ class Trajectory():
             Rd_2 = Rinter(self.Rsec_init, self.Rsec_final, sp)
             wd_2 = winter(self.Rsec_init, self.Rsec_final, spdot)
 
+            #Path for Right Leg
+            pd_rightfoot = (0.5*(self.pstart3_right_foot + self.pstart2_right_foot) + 0.5*(self.pstart3_right_foot - self.pstart2_right_foot) * sp)
+            vd_rightfoot = (0.5*(self.pstart3_right_foot - self.pstart2_right_foot) * spdot)
+            Rd_rightfoot = Reye()
+            wd_rightfoot = np.zeros((3, 1))
+
+            #Path for Left Leg
+            pd_leftfoot = (0.5*(self.pstart3_left_foot + self.pstart2_left_foot) + 0.5*(self.pstart3_left_foot - self.pstart2_left_foot) * sp)
+            vd_leftfoot = (0.5*(self.pstart3_left_foot - self.pstart2_left_foot) * spdot)
+            Rd_leftfoot = Reye()
+            wd_leftfoot = np.zeros((3, 1))
+
         else: 
             # return self.q.flatten().tolist(), np.zeros((48, 1)).flatten().tolist()
             pass
@@ -191,12 +205,32 @@ class Trajectory():
         #FKIN ON KINEMATIC CHAIN FPR RIGHT ARM
         (ptip_right, R_right, Jv_right, Jw_right) = self.chain_right_arm.fkin(qlast[self.joint_indicies_by_chain("pelvis_to_right_arm")])
 
+        #FKIN ON KINEMATIC CHAIN FOR LEFT FOOT
+        (ptip_leftfoot, R_leftfoot, Jv_leftfoot, Jw_leftfoot) = self.chain_left_foot.fkin(qlast[self.joint_indicies_by_chain("pelvis_to_left_foot")])
+
+        #FKIN ON KINEMATIC CHAIN FOR RIGHT FOOT
+        (ptip_rightfoot, R_rightfoot, Jv_rightfoot, Jw_rightfoot) = self.chain_right_foot.fkin(qlast[self.joint_indicies_by_chain("pelvis_to_right_foot")])
+
+        #CREATIG JACOBIAN(6 x 48) AND VELOCITY(6 x 1) FOR LEFT FOOT
+        J_leftfoot = self.fill_jac(np.vstack((Jv_leftfoot, Jw_leftfoot)), "pelvis_to_left_foot")
+        v_leftfoot = np.vstack((vd_leftfoot, wd_leftfoot))
+
+        #CREATIG JACOBIAN(6 x 48) AND VELOCITY(6 x 1) FOR RIGHT FOOT
+        J_rightfoot = self.fill_jac(np.vstack((Jv_rightfoot, Jw_rightfoot)), "pelvis_to_right_foot")
+        v_rightfoot = np.vstack((vd_rightfoot, wd_rightfoot))
+
         J_1 = 1/2*self.fill_jac(np.vstack((Jv_left, Jw_left)), "pelvis_to_left_arm") + 1/2*self.fill_jac(np.vstack((Jv_right, Jw_right)), "pelvis_to_right_arm")
+        J_1 = np.vstack((J_1, J_leftfoot, J_rightfoot))
         Jwinv_1 = np.linalg.inv(np.transpose(J_1)@J_1 + 0.0001*np.identity(48)) @ np.transpose(J_1)
         e1_v = ep(pd_1, 1/2*(ptip_left+ptip_right))
         e1_r = eR(Rd_1, (R_left+R_right)/2)
         error_1 = np.vstack((e1_v, e1_r))
         v_1 = np.vstack((vd_1, wd_1))
+        v_1 = np.vstack((v_1, v_leftfoot, v_rightfoot))
+        error_rightfoot = np.vstack((ep(pd_rightfoot, ptip_rightfoot), eR(Rd_rightfoot, R_rightfoot)))
+        error_leftfoot = np.vstack((ep(pd_leftfoot, ptip_leftfoot), eR(Rd_leftfoot, R_leftfoot)))
+        error_legs = np.vstack((error_leftfoot, error_rightfoot))
+        error_1 = np.vstack((error_1, error_legs))
 
         J_2 = self.fill_jac(np.vstack((Jv_left, Jw_left)), "pelvis_to_left_arm") - self.fill_jac(np.vstack((Jv_right, Jw_right)), "pelvis_to_right_arm")
         Jwinv_2 = np.linalg.inv(np.transpose(J_2)@J_2 + 0.0001*np.identity(48)) @ np.transpose(J_2)
