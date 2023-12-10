@@ -40,12 +40,14 @@ class Trajectory():
         self.q[34] = -1.804  # leftShoulder_rotz = -1.804
         self.chain_left_arm = KinematicChain(node, 'Pelvis', 'LeftHand', self.joints_by_chain("pelvis_to_left_arm"))
         self.chain_left_foot = KinematicChain(node, 'Pelvis', 'LeftFoot', self.joints_by_chain("pelvis_to_left_foot"))
+        self.R_left = Reye()
 
         # RIGHT SIDE
         # pelvis, stomach, abs, lowerChest, upperChest, rightInnerShoulder, rightShoulder, rightElbow, rightWrist
         self.q[17] = -0.785
         self.chain_right_arm = KinematicChain(node, 'Pelvis', 'RightHand', self.joints_by_chain("pelvis_to_right_arm"))
         self.chain_right_foot = KinematicChain(node, 'Pelvis', 'RightFoot', self.joints_by_chain("pelvis_to_right_foot"))
+        self.R_right = Reye()
 
         # TASK SPACE
         self.error_arm_prim = np.zeros((6,1))
@@ -60,8 +62,8 @@ class Trajectory():
 
         # TASK 1
         # Initial
-        self.pstart_left_arm = self.chain_left_arm.fkin(self.q[self.joint_indicies_by_chain("pelvis_to_left_arm")])[0]
-        self.pstart_right_arm = self.chain_right_arm.fkin(self.q[self.joint_indicies_by_chain("pelvis_to_right_arm")])[0]
+        self.pstart_left_arm = self.chain_left.fkin(self.q[self.joint_indicies_by_chain("pelvis_to_left_arm")])[0]
+        self.pstart_right_arm = self.chain_right.fkin(self.q[self.joint_indicies_by_chain("pelvis_to_right_arm")])[0]
         self.pstart_right_foot = np.array([-0.449653, -0.493177, -0.71984]).reshape((3,1))
 
 
@@ -70,28 +72,22 @@ class Trajectory():
         self.pin_left_arm = np.array([0.51844, 0.0642861, 0.43287]).reshape((3, 1))
         self.pin_right_arm = np.array([0.51561, -0.0529214, 0.43287]).reshape((3, 1))
         self.prim_init = (self.pin_left_arm + self.pin_right_arm)/2
-        left_orientation = np.array([0, 0, -0.784569])
-        right_orientation = np.array([0, 0, 0.783293])
-        self.Rprim_left = Rotz(left_orientation[2])
-        self.Rprim_right = Rotz(right_orientation[2])
-        self.Rprim_init = Rmid(self.Rprim_left, self.Rprim_right)
-        self.Rsec_init = np.transpose(self.Rprim_left)@self.Rprim_right
-
         # Final
         self.pout_left_arm = np.array([0.60774, 0.064053, 0.11712]).reshape((3, 1))
         self.pout_right_arm = np.array([0.60538, -0.053098, 0.1185]).reshape((3, 1))
         self.prim_final = (self.pout_left_arm + self.pout_right_arm)/2
-        self.Rprim_final = self.Rprim_init
-        self.Rsec_final = self.Rsec_init
-        
 
         self.pstart2_left_foot  = np.array([0.00024073, 0.0983878, -0.935553]).reshape((3,1))
         self.pstart2_right_foot = np.array([0.450104, -0.098388, -0.820714]).reshape((3,1))
 
         # TASK 3
         # Initial
+        self.pout_left_arm = np.array([0.7, 0.0642861, 0.11712]).reshape((3, 1))
+        self.pout_right_arm = np.array([0.7, -0.0529214, 0.1185]).reshape((3, 1))
+
         self.pstart3_left_foot  = np.array([0.00024073, 0.0983878, -0.4]).reshape((3,1))
         self.pstart3_right_foot = np.array([0.938602, -0.098388, 0.00730084]).reshape((3,1))
+
         
         self.lam = 20
 
@@ -167,46 +163,41 @@ class Trajectory():
             spdot = w * sin(w * (t - self.WIND_UP_TIME))
 
             # PRIMARY
-            pd_1 = (0.5*(self.prim_final+self.prim_init) + 0.5*(self.prim_final-self.prim_init) * sp)
-            vd_1 = (0.5*(self.prim_final-self.prim_init) * spdot)
-            Rd_1 = Rinter(self.Rprim_init, self.Rprim_final, sp)
-            wd_1 = winter(self.Rprim_init, self.Rprim_final, spdot)
+            pd_1 = (0.5*(self.p1_final+self.p1_init) + 0.5*(self.p1_final-self.p1_init) * sp)
+            vd_1 = (0.5*(self.p1_final-self.p1_init) * spdot)
+            Rd_1 = Reye()
+            wd_1 = np.zeros((3, 1))
 
             # SECONDARY
             p2_init = self.pin_left_arm - self.pin_right_arm
             T = 5.0
             pd_2, vd_2 = goto(t, T, p2_init, np.zeros((3, 1)))
-            Rd_2 = Rinter(self.Rsec_init, self.Rsec_final, sp)
-            wd_2 = winter(self.Rsec_init, self.Rsec_final, spdot)
+            Rd_2 = Reye()
+            wd_2 = np.zeros((3, 1))
 
         else: 
             # return self.q.flatten().tolist(), np.zeros((48, 1)).flatten().tolist()
             pass
         
         qlast = self.q
+        error = self.error
 
         #FKIN ON KINEMATIC CHAIN FPR LEFT ARM
-        (ptip_left, R_left, Jv_left, Jw_left) = self.chain_left_arm.fkin(qlast[self.joint_indicies_by_chain("pelvis_to_left_arm")])
+        (ptip_left, R_left, Jv_left, Jw_left) = self.chain_left.fkin(qlast[self.joint_indicies_by_chain("pelvis_to_left_arm")])
 
         #FKIN ON KINEMATIC CHAIN FPR RIGHT ARM
-        (ptip_right, R_right, Jv_right, Jw_right) = self.chain_right_arm.fkin(qlast[self.joint_indicies_by_chain("pelvis_to_right_arm")])
+        (ptip_right, R_right, Jv_right, Jw_right) = self.chain_right.fkin(qlast[self.joint_indicies_by_chain("pelvis_to_right_arm")])
 
-        J_1 = 1/2*self.fill_jac(np.vstack((Jv_left, Jw_left)), "pelvis_to_left_arm") + 1/2*self.fill_jac(np.vstack((Jv_right, Jw_right)), "pelvis_to_right_arm")
+        J_1 = 1/2*self.fill_jac(Jv_left, "pelvis_to_left_arm") + 1/2*self.fill_jac(Jv_right, "pelvis_to_right_arm")
         Jwinv_1 = np.linalg.inv(np.transpose(J_1)@J_1 + 0.0001*np.identity(48)) @ np.transpose(J_1)
-        e1_v = ep(pd_1, 1/2*(ptip_left+ptip_right))
-        e1_r = eR(Rd_1, (R_left+R_right)/2)
-        error_1 = np.vstack((e1_v, e1_r))
-        v_1 = np.vstack((vd_1, wd_1))
+        error_1 = ep(pd_1, 1/2*(ptip_left+ptip_right))
 
-        J_2 = self.fill_jac(np.vstack((Jv_left, Jw_left)), "pelvis_to_left_arm") - self.fill_jac(np.vstack((Jv_right, Jw_right)), "pelvis_to_right_arm")
+        J_2 = self.fill_jac(Jv_left, "pelvis_to_left_arm") - self.fill_jac(Jv_right, "pelvis_to_right_arm")
         Jwinv_2 = np.linalg.inv(np.transpose(J_2)@J_2 + 0.0001*np.identity(48)) @ np.transpose(J_2)
-        e2_v = ep(pd_2, ptip_left - ptip_right)
-        e2_r = eR(Rd_2, R_left - R_right)
-        error_2 = np.vstack((e2_v, e2_r))
-        v_2 = np.vstack((vd_2, wd_2))
+        error_2 = ep(pd_2, ptip_left - ptip_right)
 
-        qdot_sec = Jwinv_2 @ (v_2 + self.lam*error_2)
-        qdot = (Jwinv_1 @ (v_1 + self.lam*error_1)) + (np.identity(48) - Jwinv_1 @ J_1)@qdot_sec
+        qdot_sec = Jwinv_2 @ (vd_2 + self.lam*error_2)
+        qdot = (Jwinv_1 @ (vd_1 + self.lam*error_1)) + (np.identity(48) - Jwinv_1 @ J_1)@qdot_sec
         q = qlast + dt*qdot
         self.q = q
         self.error = np.vstack((error_1, error_2))
